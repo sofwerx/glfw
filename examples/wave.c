@@ -5,22 +5,19 @@
  * Modified for GLFW by Sylvain Hellegouarch - sh@programmationworld.com
  * Modified for variable frame rate by Marcus Geelnard
  * 2003-Jan-31: Minor cleanups and speedups / MG
- * 2010-10-24: Formatting and cleanup - Camilla Löwy
+ * 2010-10-24: Formatting and cleanup - Camilla Berglund
  *****************************************************************************/
-
-#if defined(_MSC_VER)
- // Make MS math.h define M_PI
- #define _USE_MATH_DEFINES
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-#include <glad/glad.h>
+#define GLFW_INCLUDE_GLU
 #include <GLFW/glfw3.h>
 
-#include <linmath.h>
+#ifndef M_PI
+ #define M_PI 3.1415926535897932384626433832795
+#endif
 
 // Maximum delta T to allow for differential calculations
 #define MAX_DELTA_T 0.01
@@ -31,8 +28,10 @@
 GLfloat alpha = 210.f, beta = -70.f;
 GLfloat zoom = 2.f;
 
-double cursorX;
-double cursorY;
+GLboolean locked = GL_FALSE;
+
+int cursorX;
+int cursorY;
 
 struct Vertex
 {
@@ -279,7 +278,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     switch (key)
     {
         case GLFW_KEY_ESCAPE:
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
+            glfwSetWindowShouldClose(window, GL_TRUE);
             break;
         case GLFW_KEY_SPACE:
             init_grid();
@@ -322,10 +321,13 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     if (action == GLFW_PRESS)
     {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwGetCursorPos(window, &cursorX, &cursorY);
+        locked = GL_TRUE;
     }
     else
+    {
+        locked = GL_FALSE;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
 }
 
 
@@ -335,14 +337,14 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 void cursor_position_callback(GLFWwindow* window, double x, double y)
 {
-    if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
+    if (locked)
     {
         alpha += (GLfloat) (x - cursorX) / 10.f;
         beta += (GLfloat) (y - cursorY) / 10.f;
-
-        cursorX = x;
-        cursorY = y;
     }
+
+    cursorX = (int) x;
+    cursorY = (int) y;
 }
 
 
@@ -365,7 +367,6 @@ void scroll_callback(GLFWwindow* window, double x, double y)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     float ratio = 1.f;
-    mat4x4 projection;
 
     if (height > 0)
         ratio = (float) width / (float) height;
@@ -375,11 +376,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
     // Change to the projection matrix and set our viewing volume
     glMatrixMode(GL_PROJECTION);
-    mat4x4_perspective(projection,
-                       60.f * (float) M_PI / 180.f,
-                       ratio,
-                       1.f, 1024.f);
-    glLoadMatrixf((const GLfloat*) projection);
+    glLoadIdentity();
+    gluPerspective(60.0, ratio, 1.0, 1024.0);
 }
 
 
@@ -412,7 +410,6 @@ int main(int argc, char* argv[])
     glfwSetScrollCallback(window, scroll_callback);
 
     glfwMakeContextCurrent(window);
-    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(1);
 
     glfwGetFramebufferSize(window, &width, &height);
